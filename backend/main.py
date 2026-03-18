@@ -304,4 +304,4 @@ if __name__ == "__main__":
         run_pipeline(args.inspection, args.thermal, args.output, args.property, args.inspector)
     else:
         app = create_app()
-        app.run(debug=True, port=5000)
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
