@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DDR Report Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 40px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 32px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input[type="text"]:focus, input[type="file"]:focus {
+      border-color: #1e6ef0;
+    }
+
+    input[type="file"] {
+      padding: 8px 12px;
+      cursor: pointer;
+      background: #fafafa;
+    }
+
+    .file-hint {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: -16px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      background: #1e6ef0;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover:not(:disabled) { background: #1558c0; }
+    button:disabled { background: #93b8f8; cursor: not-allowed; }
+
+    #status {
+      margin-top: 20px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+
+    #status.loading {
+      background: #eef4ff;
+      color: #1e6ef0;
+      border: 1px solid #c2d9ff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #status.error {
+      background: #fff0f0;
+      color: #c0392b;
+      border: 1px solid #f5c6c6;
+      display: block;
+    }
+
+    #status.success {
+      background: #f0fff4;
+      color: #1e7e34;
+      border: 1px solid #b2dfdb;
+      display: block;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid #c2d9ff;
+      border-top-color: #1e6ef0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 24px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>DDR Report Generator</h1>
+    <p class="subtitle">Upload inspection documents to generate a Detailed Diagnostic Report</p>
+
+    <label>Property Name</label>
+    <input type="text" id="property_name" placeholder="e.g. 123 Sample Street, Mumbai" />
+
+    <label>Inspector Name</label>
+    <input type="text" id="inspector_name" placeholder="e.g. John Doe" />
+
+    <hr class="divider" />
+
+    <label>Inspection Report (PDF)</label>
+    <input type="file" id="inspection" accept=".pdf" />
+    <p class="file-hint">Site observations and issue descriptions</p>
+
+    <label>Thermal Report (PDF)</label>
+    <input type="file" id="thermal" accept=".pdf" />
+    <p class="file-hint">Temperature readings and thermal findings</p>
+
+    <button id="generateBtn" onclick="generate()">Generate DDR Report</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    async function generate() {
+      const inspection = document.getElementById('inspection').files[0];
+      const thermal = document.getElementById('thermal').files[0];
+      const propertyName = document.getElementById('property_name').value;
+      const inspectorName = document.getElementById('inspector_name').value;
+      const status = document.getElementById('status');
+      const btn = document.getElementById('generateBtn');
+
+      if (!inspection || !thermal) {
+        showStatus('error', 'Please upload both PDF files before generating.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('inspection', inspection);
+      formData.append('thermal', thermal);
+      formData.append('property_name', propertyName);
+      formData.append('inspector_name', inspectorName);
+
+      btn.disabled = true;
+      showStatus('loading', 'Generating report — this may take 30–60 seconds...');
+
+      try {
+        const response = await fetch('/generate', { method: 'POST', body: formData });
+
+        if (!response.ok) {
+          const err = await response.json();
+          showStatus('error', `Error: ${err.error}`);
+          return;
+        }
+
+        // Trigger download
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'DDR_Report.docx';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showStatus('success', '✅ Report generated and downloaded successfully!');
+      } catch (e) {
+        showStatus('error', `Request failed: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function showStatus(type, message) {
+      const status = document.getElementById('status');
+      status.className = type;
+      if (type === 'loading') {
+        status.innerHTML = `<div class="spinner"></div><span>${message}</span>`;
+      } else {
+        status.textContent = message;
+      }
+      status.style.display = type === 'loading' ? 'flex' : 'block';
+    }
+  </script>
+</body>
+</html>
