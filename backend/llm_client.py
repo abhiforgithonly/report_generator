@@ -94,10 +94,13 @@ Generate a professional DDR (Detailed Diagnostic Report) that is clear and clien
 
 CRITICAL RULES:
 - Do NOT invent facts not present in the documents
+- Do NOT use any example addresses, property names, or details from your training data — use ONLY what is present in the uploaded documents
+- The property address, property type, and all identifying details must come STRICTLY from the provided documents only — if not found, write "Not Available"
 - If information conflicts between the two reports, explicitly mention the conflict
 - If information is missing, write exactly: "Not Available"
 - Merge related/duplicate observations — do not repeat the same point twice
 - Use simple language suitable for a property owner
+- Do NOT assume or guess any property details that are not explicitly stated in the documents
 
 OUTPUT FORMAT — respond ONLY with a valid JSON object, no markdown fences:
 {
@@ -133,11 +136,15 @@ def call_openrouter(inspection_doc: ExtractedDocument, thermal_doc: ExtractedDoc
 
     print(f"[INFO] Model: {model} | Images: {len(all_images)}")
 
-    text_block = f"""=== INSPECTION REPORT ===
+    text_block = f"""=== INSPECTION REPORT (extract facts ONLY from this document) ===
 {inspection_doc.full_text}
 
-=== THERMAL REPORT ===
-{thermal_doc.full_text}"""
+=== THERMAL REPORT (extract facts ONLY from this document) ===
+{thermal_doc.full_text}
+
+REMINDER: Use ONLY the information present in the two documents above.
+Do NOT use any property addresses, names, or details from your training data or memory.
+If a detail is not in the documents, write "Not Available"."""
 
     if use_vision:
         content = [{"type": "text", "text": text_block + "\n\nImages from the documents are attached below."}]
@@ -166,7 +173,7 @@ def call_openrouter(inspection_doc: ExtractedDocument, thermal_doc: ExtractedDoc
             "model": model,
             "messages": [{"role": "system", "content": DDR_SYSTEM_PROMPT}, *messages],
             "max_tokens": 4000,
-            "temperature": 0.2,
+            "temperature": 0.1,
         },
         timeout=120,
     )
